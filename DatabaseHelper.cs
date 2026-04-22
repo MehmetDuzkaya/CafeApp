@@ -163,6 +163,39 @@ CREATE TABLE IF NOT EXISTS orders (
         command.ExecuteNonQuery();
     }
 
+    public static void UpdateProduct(int productId, string category, string name, decimal price)
+    {
+        using var connection = new SQLiteConnection(ConnectionString);
+        connection.Open();
+
+        using var command = new SQLiteCommand(
+            @"UPDATE products
+              SET category = @category,
+                  name = @name,
+                  price = @price
+              WHERE id = @id;",
+            connection);
+
+        command.Parameters.AddWithValue("@id", productId);
+        command.Parameters.AddWithValue("@category", category.Trim());
+        command.Parameters.AddWithValue("@name", name.Trim());
+        command.Parameters.AddWithValue("@price", (double)price);
+        command.ExecuteNonQuery();
+    }
+
+    public static void DeleteProduct(int productId)
+    {
+        using var connection = new SQLiteConnection(ConnectionString);
+        connection.Open();
+
+        using var command = new SQLiteCommand(
+            "DELETE FROM products WHERE id = @id;",
+            connection);
+
+        command.Parameters.AddWithValue("@id", productId);
+        command.ExecuteNonQuery();
+    }
+
     public static List<string> GetProductCategories()
     {
         var categories = new List<string>();
@@ -292,6 +325,19 @@ CREATE TABLE IF NOT EXISTS orders (
             : Convert.ToInt32(result);
     }
 
+    public static void DeleteOrder(int orderId)
+    {
+        using var connection = new SQLiteConnection(ConnectionString);
+        connection.Open();
+
+        using var command = new SQLiteCommand(
+            "DELETE FROM orders WHERE id = @id;",
+            connection);
+
+        command.Parameters.AddWithValue("@id", orderId);
+        command.ExecuteNonQuery();
+    }
+
     public static void ClearOrdersForTable(int tableId)
     {
         using var connection = new SQLiteConnection(ConnectionString);
@@ -354,4 +400,9 @@ internal sealed class OrderInfo
     public int TableId { get; set; }
     public string ProductName { get; set; } = string.Empty;
     public decimal Price { get; set; }
+
+    public override string ToString()
+    {
+        return $"{ProductName} - {Price:0.00} TL";
+    }
 }

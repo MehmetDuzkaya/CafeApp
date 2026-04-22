@@ -17,6 +17,7 @@ public sealed class Form1 : Form
     private readonly Label _selectedTableLabel = new();
     private readonly Label _totalPriceLabel = new();
     private readonly Button _openProductPageButton = new();
+    private readonly Button _removeOrderItemButton = new();
     private readonly Button _checkoutButton = new();
 
     private readonly System.Windows.Forms.Timer _uiTimer = new();
@@ -122,7 +123,7 @@ public sealed class Form1 : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 7,
+            RowCount = 8,
             Padding = new Padding(12),
             BackColor = Color.Gainsboro
         };
@@ -132,6 +133,7 @@ public sealed class Form1 : Form
         panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 35f));
+        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
@@ -171,6 +173,17 @@ public sealed class Form1 : Form
         _ordersListBox.Font = new Font("Segoe UI", 9, FontStyle.Regular);
         _ordersListBox.IntegralHeight = false;
 
+        _removeOrderItemButton.Text = "Secili Urunu Siparisten Sil";
+        _removeOrderItemButton.AutoSize = true;
+        _removeOrderItemButton.Dock = DockStyle.Top;
+        _removeOrderItemButton.BackColor = Color.FromArgb(150, 63, 63);
+        _removeOrderItemButton.ForeColor = Color.White;
+        _removeOrderItemButton.FlatStyle = FlatStyle.Flat;
+        _removeOrderItemButton.Font = new Font("Segoe UI", 9, FontStyle.Bold);
+        _removeOrderItemButton.Margin = new Padding(0, 8, 0, 0);
+        _removeOrderItemButton.FlatAppearance.BorderSize = 0;
+        _removeOrderItemButton.Click += RemoveOrderItemButtonOnClick;
+
         _totalPriceLabel.Dock = DockStyle.Fill;
         _totalPriceLabel.AutoSize = true;
         _totalPriceLabel.Font = new Font("Segoe UI", 12, FontStyle.Bold);
@@ -193,8 +206,9 @@ public sealed class Form1 : Form
         panel.Controls.Add(_openProductPageButton, 0, 2);
         panel.Controls.Add(_selectedTableLabel, 0, 3);
         panel.Controls.Add(_ordersListBox, 0, 4);
-        panel.Controls.Add(_totalPriceLabel, 0, 5);
-        panel.Controls.Add(_checkoutButton, 0, 6);
+        panel.Controls.Add(_removeOrderItemButton, 0, 5);
+        panel.Controls.Add(_totalPriceLabel, 0, 6);
+        panel.Controls.Add(_checkoutButton, 0, 7);
 
         return panel;
     }
@@ -398,13 +412,12 @@ public sealed class Form1 : Form
     {
         var existingCategories = DatabaseHelper.GetProductCategories();
         using var addProductForm = new AddProductForm(existingCategories);
-        if (addProductForm.ShowDialog(this) != DialogResult.OK)
-        {
-            return;
-        }
+        addProductForm.ShowDialog(this);
 
-        DatabaseHelper.AddProduct(addProductForm.ProductCategory, addProductForm.ProductName, addProductForm.ProductPrice);
-        LoadProducts();
+        if (addProductForm.HasChanges)
+        {
+            LoadProducts();
+        }
     }
 
     private void ProductButtonOnClick(object? sender, EventArgs e)
@@ -428,6 +441,24 @@ public sealed class Form1 : Form
         }
 
         DatabaseHelper.AddOrder(_selectedTableId, product.Name, product.Price);
+        UpdateSelectedTableSection();
+    }
+
+    private void RemoveOrderItemButtonOnClick(object? sender, EventArgs e)
+    {
+        if (_selectedTableId <= 0 || !_tableMap.ContainsKey(_selectedTableId))
+        {
+            MessageBox.Show("Please select a table first.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        if (_ordersListBox.SelectedItem is not OrderInfo selectedOrder)
+        {
+            MessageBox.Show("Please select an order item from the list.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        DatabaseHelper.DeleteOrder(selectedOrder.Id);
         UpdateSelectedTableSection();
     }
 
@@ -489,6 +520,7 @@ public sealed class Form1 : Form
         if (_selectedTableId <= 0 || !_tableMap.ContainsKey(_selectedTableId))
         {
             _selectedTableLabel.Text = "Selected Table: None";
+            _ordersListBox.DataSource = null;
             _ordersListBox.Items.Clear();
             _totalPriceLabel.Text = "Total: 0.00 TL";
             return;
@@ -499,12 +531,9 @@ public sealed class Form1 : Form
         var minuteText = table.IsOccupied ? $", Elapsed: {GetElapsedMinutes(table.StartTime)} min" : string.Empty;
         _selectedTableLabel.Text = $"Selected Table: {_selectedTableId} ({stateText}{minuteText})";
 
-        _ordersListBox.Items.Clear();
         var orders = DatabaseHelper.GetOrdersForTable(_selectedTableId);
-        foreach (var order in orders)
-        {
-            _ordersListBox.Items.Add($"{order.ProductName} - {order.Price:0.00} TL");
-        }
+        _ordersListBox.DataSource = null;
+        _ordersListBox.DataSource = orders;
 
         var total = DatabaseHelper.GetTotalForTable(_selectedTableId);
         _totalPriceLabel.Text = $"Total: {total:0.00} TL";
