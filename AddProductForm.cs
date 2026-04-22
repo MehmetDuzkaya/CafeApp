@@ -303,11 +303,13 @@ public sealed class AddProductForm : Form
             return false;
         }
 
-        if (!TryParsePrice(priceText, out var price) || price <= 0)
+        if (!TryParsePrice(priceText, out var parsedPrice) || parsedPrice <= 0)
         {
             MessageBox.Show("Please enter a valid price.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return false;
         }
+
+        price = parsedPrice;
 
         return true;
     }
