@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Globalization;
 using System.Windows.Forms;
 
 namespace CafeApp;
@@ -13,12 +12,12 @@ public sealed class Form1 : Form
     private readonly Dictionary<int, Button> _tableButtons = new();
     private readonly Dictionary<int, TableInfo> _tableMap = new();
 
-    private readonly ListBox _productsListBox = new();
+    private readonly FlowLayoutPanel _productsPanel = new();
     private readonly ListBox _ordersListBox = new();
-    private readonly TextBox _productNameTextBox = new();
-    private readonly TextBox _productPriceTextBox = new();
     private readonly Label _selectedTableLabel = new();
     private readonly Label _totalPriceLabel = new();
+    private readonly Button _openProductPageButton = new();
+    private readonly Button _checkoutButton = new();
 
     private readonly Timer _uiTimer = new();
 
@@ -123,21 +122,16 @@ public sealed class Form1 : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 12,
+            RowCount = 7,
             Padding = new Padding(12),
             BackColor = Color.Gainsboro
         };
 
         panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        panel.RowStyles.Add(new RowStyle(SizeType.Percent, 30f));
+        panel.RowStyles.Add(new RowStyle(SizeType.Percent, 45f));
         panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        panel.RowStyles.Add(new RowStyle(SizeType.Percent, 30f));
+        panel.RowStyles.Add(new RowStyle(SizeType.Percent, 35f));
         panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
@@ -145,84 +139,37 @@ public sealed class Form1 : Form
         {
             Dock = DockStyle.Fill,
             AutoSize = true,
-            Text = "Products",
+            Text = "Products (click to add)",
             Font = new Font("Segoe UI", 11, FontStyle.Bold),
             Padding = new Padding(0, 0, 0, 6)
         };
 
-        _productsListBox.Dock = DockStyle.Fill;
-        _productsListBox.Font = new Font("Segoe UI", 10, FontStyle.Regular);
+        _productsPanel.Dock = DockStyle.Fill;
+        _productsPanel.AutoScroll = true;
+        _productsPanel.FlowDirection = FlowDirection.LeftToRight;
+        _productsPanel.WrapContents = true;
+        _productsPanel.Padding = new Padding(2);
+        _productsPanel.BackColor = Color.White;
 
-        var addProductTitle = new Label
-        {
-            Dock = DockStyle.Fill,
-            AutoSize = true,
-            Text = "Add Product",
-            Font = new Font("Segoe UI", 11, FontStyle.Bold),
-            Padding = new Padding(0, 8, 0, 6)
-        };
-
-        var nameLabel = new Label
-        {
-            Text = "Name:",
-            AutoSize = true,
-            Dock = DockStyle.Fill,
-            Font = new Font("Segoe UI", 9, FontStyle.Regular)
-        };
-
-        _productNameTextBox.Dock = DockStyle.Top;
-        _productNameTextBox.Font = new Font("Segoe UI", 10, FontStyle.Regular);
-
-        var priceLabel = new Label
-        {
-            Text = "Price:",
-            AutoSize = true,
-            Dock = DockStyle.Fill,
-            Font = new Font("Segoe UI", 9, FontStyle.Regular),
-            Padding = new Padding(0, 6, 0, 0)
-        };
-
-        _productPriceTextBox.Dock = DockStyle.Top;
-        _productPriceTextBox.Font = new Font("Segoe UI", 10, FontStyle.Regular);
-
-        var addProductButton = new Button
-        {
-            Text = "Add Product",
-            AutoSize = true,
-            Dock = DockStyle.Top,
-            BackColor = Color.FromArgb(60, 120, 200),
-            ForeColor = Color.White,
-            FlatStyle = FlatStyle.Flat,
-            Font = new Font("Segoe UI", 9, FontStyle.Bold),
-            Margin = new Padding(0, 8, 0, 0)
-        };
-
-        addProductButton.FlatAppearance.BorderSize = 0;
-        addProductButton.Click += AddProductButtonOnClick;
+        _openProductPageButton.Text = "Open Add Product Page";
+        _openProductPageButton.AutoSize = true;
+        _openProductPageButton.Dock = DockStyle.Top;
+        _openProductPageButton.BackColor = Color.FromArgb(60, 120, 200);
+        _openProductPageButton.ForeColor = Color.White;
+        _openProductPageButton.FlatStyle = FlatStyle.Flat;
+        _openProductPageButton.Font = new Font("Segoe UI", 9, FontStyle.Bold);
+        _openProductPageButton.Margin = new Padding(0, 8, 0, 0);
+        _openProductPageButton.FlatAppearance.BorderSize = 0;
+        _openProductPageButton.Click += OpenProductPageButtonOnClick;
 
         _selectedTableLabel.Dock = DockStyle.Fill;
         _selectedTableLabel.AutoSize = true;
         _selectedTableLabel.Font = new Font("Segoe UI", 10, FontStyle.Bold);
-        _selectedTableLabel.Padding = new Padding(0, 12, 0, 6);
+        _selectedTableLabel.Padding = new Padding(0, 10, 0, 6);
 
         _ordersListBox.Dock = DockStyle.Fill;
         _ordersListBox.Font = new Font("Segoe UI", 9, FontStyle.Regular);
         _ordersListBox.IntegralHeight = false;
-
-        var addOrderButton = new Button
-        {
-            Text = "Add Selected Product To Table",
-            AutoSize = true,
-            Dock = DockStyle.Top,
-            BackColor = Color.FromArgb(32, 153, 95),
-            ForeColor = Color.White,
-            FlatStyle = FlatStyle.Flat,
-            Font = new Font("Segoe UI", 9, FontStyle.Bold),
-            Margin = new Padding(0, 8, 0, 0)
-        };
-
-        addOrderButton.FlatAppearance.BorderSize = 0;
-        addOrderButton.Click += AddOrderButtonOnClick;
 
         _totalPriceLabel.Dock = DockStyle.Fill;
         _totalPriceLabel.AutoSize = true;
@@ -230,18 +177,24 @@ public sealed class Form1 : Form
         _totalPriceLabel.Padding = new Padding(0, 8, 0, 0);
         _totalPriceLabel.Text = "Total: 0.00 TL";
 
+        _checkoutButton.Text = "Hesap Al";
+        _checkoutButton.AutoSize = true;
+        _checkoutButton.Dock = DockStyle.Top;
+        _checkoutButton.BackColor = Color.FromArgb(189, 92, 37);
+        _checkoutButton.ForeColor = Color.White;
+        _checkoutButton.FlatStyle = FlatStyle.Flat;
+        _checkoutButton.Font = new Font("Segoe UI", 10, FontStyle.Bold);
+        _checkoutButton.Margin = new Padding(0, 8, 0, 0);
+        _checkoutButton.FlatAppearance.BorderSize = 0;
+        _checkoutButton.Click += CheckoutButtonOnClick;
+
         panel.Controls.Add(productsTitle, 0, 0);
-        panel.Controls.Add(_productsListBox, 0, 1);
-        panel.Controls.Add(addProductTitle, 0, 2);
-        panel.Controls.Add(nameLabel, 0, 3);
-        panel.Controls.Add(_productNameTextBox, 0, 4);
-        panel.Controls.Add(priceLabel, 0, 5);
-        panel.Controls.Add(_productPriceTextBox, 0, 6);
-        panel.Controls.Add(addProductButton, 0, 7);
-        panel.Controls.Add(_selectedTableLabel, 0, 8);
-        panel.Controls.Add(_ordersListBox, 0, 9);
-        panel.Controls.Add(addOrderButton, 0, 10);
-        panel.Controls.Add(_totalPriceLabel, 0, 11);
+        panel.Controls.Add(_productsPanel, 0, 1);
+        panel.Controls.Add(_openProductPageButton, 0, 2);
+        panel.Controls.Add(_selectedTableLabel, 0, 3);
+        panel.Controls.Add(_ordersListBox, 0, 4);
+        panel.Controls.Add(_totalPriceLabel, 0, 5);
+        panel.Controls.Add(_checkoutButton, 0, 6);
 
         return panel;
     }
@@ -276,8 +229,70 @@ public sealed class Form1 : Form
     private void LoadProducts()
     {
         var products = DatabaseHelper.GetProducts();
-        _productsListBox.DataSource = null;
-        _productsListBox.DataSource = products;
+
+        _productsPanel.SuspendLayout();
+        _productsPanel.Controls.Clear();
+
+        if (products.Count == 0)
+        {
+            _productsPanel.Controls.Add(new Label
+            {
+                Text = "No products. Use 'Open Add Product Page'.",
+                AutoSize = true,
+                Font = new Font("Segoe UI", 9, FontStyle.Italic),
+                ForeColor = Color.DimGray,
+                Margin = new Padding(4)
+            });
+
+            _productsPanel.ResumeLayout();
+            return;
+        }
+
+        var currentCategory = string.Empty;
+        foreach (var product in products)
+        {
+            if (!string.Equals(currentCategory, product.Category, StringComparison.OrdinalIgnoreCase))
+            {
+                currentCategory = product.Category;
+
+                var categoryLabel = new Label
+                {
+                    Text = currentCategory,
+                    AutoSize = false,
+                    Width = 320,
+                    Height = 26,
+                    Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(52, 52, 52),
+                    BackColor = Color.FromArgb(235, 235, 235),
+                    TextAlign = ContentAlignment.MiddleLeft,
+                    Padding = new Padding(8, 0, 0, 0),
+                    Margin = new Padding(4, 8, 4, 4)
+                };
+
+                _productsPanel.Controls.Add(categoryLabel);
+                _productsPanel.SetFlowBreak(categoryLabel, true);
+            }
+
+            var productButton = new Button
+            {
+                Width = 150,
+                Height = 62,
+                Text = $"{product.Name}\n{product.Price:0.00} TL",
+                Tag = product,
+                Margin = new Padding(4),
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9, FontStyle.Bold),
+                BackColor = GetProductButtonColor(product.Category),
+                ForeColor = Color.White
+            };
+
+            productButton.FlatAppearance.BorderSize = 0;
+            productButton.Click += ProductButtonOnClick;
+
+            _productsPanel.Controls.Add(productButton);
+        }
+
+        _productsPanel.ResumeLayout();
     }
 
     private void RefreshTableButtons()
@@ -309,6 +324,31 @@ public sealed class Form1 : Form
             button.BackColor = Color.MediumSeaGreen;
             button.Text = $"Table {tableId}\nAvailable";
         }
+
+        if (_selectedTableId == tableId)
+        {
+            button.FlatAppearance.BorderSize = 3;
+            button.FlatAppearance.BorderColor = Color.Gold;
+        }
+        else
+        {
+            button.FlatAppearance.BorderSize = 0;
+        }
+    }
+
+    private static Color GetProductButtonColor(string category)
+    {
+        var key = category.Trim().ToLowerInvariant();
+
+        return key switch
+        {
+            "kahve" => Color.FromArgb(121, 85, 61),
+            "cay" => Color.FromArgb(49, 132, 75),
+            "soguk icecek" => Color.FromArgb(57, 118, 191),
+            "tatli" => Color.FromArgb(171, 105, 57),
+            "yiyecek" => Color.FromArgb(131, 98, 174),
+            _ => Color.FromArgb(90, 103, 120)
+        };
     }
 
     private static int GetElapsedMinutes(DateTime? startTime)
@@ -339,52 +379,35 @@ public sealed class Form1 : Form
             return;
         }
 
-        var table = _tableMap[tableId];
-        table.IsOccupied = !table.IsOccupied;
-
-        if (table.IsOccupied)
-        {
-            table.StartTime = DateTime.Now;
-        }
-        else
-        {
-            table.StartTime = null;
-            DatabaseHelper.ClearOrdersForTable(tableId);
-        }
-
-        DatabaseHelper.UpdateTableState(tableId, table.IsOccupied, table.StartTime);
-
         _selectedTableId = tableId;
 
+        var table = _tableMap[tableId];
+        if (!table.IsOccupied)
+        {
+            table.IsOccupied = true;
+            table.StartTime = DateTime.Now;
+            DatabaseHelper.UpdateTableState(tableId, table.IsOccupied, table.StartTime);
+        }
+
         RefreshTableButton(tableId);
+        RefreshTableButtons();
         UpdateSelectedTableSection();
     }
 
-    private void AddProductButtonOnClick(object? sender, EventArgs e)
+    private void OpenProductPageButtonOnClick(object? sender, EventArgs e)
     {
-        var name = _productNameTextBox.Text.Trim();
-        var priceText = _productPriceTextBox.Text.Trim();
-
-        if (string.IsNullOrWhiteSpace(name))
+        var existingCategories = DatabaseHelper.GetProductCategories();
+        using var addProductForm = new AddProductForm(existingCategories);
+        if (addProductForm.ShowDialog(this) != DialogResult.OK)
         {
-            MessageBox.Show("Please enter a product name.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
 
-        if (!TryParsePrice(priceText, out var price) || price <= 0)
-        {
-            MessageBox.Show("Please enter a valid price.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            return;
-        }
-
-        DatabaseHelper.AddProduct(name, price);
-        _productNameTextBox.Clear();
-        _productPriceTextBox.Clear();
-
+        DatabaseHelper.AddProduct(addProductForm.ProductCategory, addProductForm.ProductName, addProductForm.ProductPrice);
         LoadProducts();
     }
 
-    private void AddOrderButtonOnClick(object? sender, EventArgs e)
+    private void ProductButtonOnClick(object? sender, EventArgs e)
     {
         if (_selectedTableId <= 0 || !_tableMap.ContainsKey(_selectedTableId))
         {
@@ -395,13 +418,12 @@ public sealed class Form1 : Form
         var selectedTable = _tableMap[_selectedTableId];
         if (!selectedTable.IsOccupied)
         {
-            MessageBox.Show("This table is available. Occupy it first.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show("This table is available. Open it first.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
 
-        if (_productsListBox.SelectedItem is not ProductInfo product)
+        if (sender is not Button clickedButton || clickedButton.Tag is not ProductInfo product)
         {
-            MessageBox.Show("Please select a product from the list.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
 
@@ -409,14 +431,57 @@ public sealed class Form1 : Form
         UpdateSelectedTableSection();
     }
 
-    private static bool TryParsePrice(string value, out decimal price)
+    private void CheckoutButtonOnClick(object? sender, EventArgs e)
     {
-        if (decimal.TryParse(value, NumberStyles.Number, CultureInfo.CurrentCulture, out price))
+        if (_selectedTableId <= 0 || !_tableMap.ContainsKey(_selectedTableId))
         {
-            return true;
+            MessageBox.Show("Please select a table first.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
         }
 
-        return decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out price);
+        var table = _tableMap[_selectedTableId];
+        var total = DatabaseHelper.GetTotalForTable(_selectedTableId);
+        var orderCount = DatabaseHelper.GetOrderCountForTable(_selectedTableId);
+
+        if (orderCount == 0)
+        {
+            if (!table.IsOccupied)
+            {
+                MessageBox.Show("No active order for this table.", "Hesap Al", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var closeEmpty = MessageBox.Show(
+                "There is no order on this table. Close table?",
+                "Hesap Al",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (closeEmpty == DialogResult.Yes)
+            {
+                table.IsOccupied = false;
+                table.StartTime = null;
+                DatabaseHelper.UpdateTableState(_selectedTableId, false, null);
+                RefreshTableButtons();
+                UpdateSelectedTableSection();
+            }
+
+            return;
+        }
+
+        MessageBox.Show(
+            $"Table {_selectedTableId} total bill: {total:0.00} TL",
+            "Hesap Al",
+            MessageBoxButtons.OK,
+            MessageBoxIcon.Information);
+
+        DatabaseHelper.ClearOrdersForTable(_selectedTableId);
+        table.IsOccupied = false;
+        table.StartTime = null;
+        DatabaseHelper.UpdateTableState(_selectedTableId, false, null);
+
+        RefreshTableButtons();
+        UpdateSelectedTableSection();
     }
 
     private void UpdateSelectedTableSection()

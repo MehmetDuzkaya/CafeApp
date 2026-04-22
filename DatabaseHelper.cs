@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS cafe_tables (
 
 CREATE TABLE IF NOT EXISTS products (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    category TEXT NOT NULL DEFAULT 'Genel',
     name TEXT NOT NULL,
     price REAL NOT NULL
 );
@@ -47,6 +48,7 @@ CREATE TABLE IF NOT EXISTS orders (
             command.ExecuteNonQuery();
         }
 
+        EnsureProductCategoryColumn(connection);
         EnsureCafeTables(connection);
     }
 
@@ -63,6 +65,38 @@ CREATE TABLE IF NOT EXISTS orders (
             command.Parameters.AddWithValue("@name", $"Table {i}");
             command.ExecuteNonQuery();
         }
+    }
+
+    private static void EnsureProductCategoryColumn(SQLiteConnection connection)
+    {
+        var hasCategoryColumn = false;
+
+        using (var command = new SQLiteCommand("PRAGMA table_info(products);", connection))
+        using (var reader = command.ExecuteReader())
+        {
+            while (reader.Read())
+            {
+                var columnName = Convert.ToString(reader["name"]);
+                if (string.Equals(columnName, "category", StringComparison.OrdinalIgnoreCase))
+                {
+                    hasCategoryColumn = true;
+                    break;
+                }
+            }
+        }
+
+        if (!hasCategoryColumn)
+        {
+            using var alterCommand = new SQLiteCommand(
+                "ALTER TABLE products ADD COLUMN category TEXT NOT NULL DEFAULT 'Genel';",
+                connection);
+            alterCommand.ExecuteNonQuery();
+        }
+
+        using var fillCommand = new SQLiteCommand(
+            "UPDATE products SET category = 'Genel' WHERE category IS NULL OR TRIM(category) = '';",
+            connection);
+        fillCommand.ExecuteNonQuery();
     }
 
     public static List<TableInfo> GetTables()
@@ -114,18 +148,42 @@ CREATE TABLE IF NOT EXISTS orders (
         command.ExecuteNonQuery();
     }
 
-    public static void AddProduct(string name, decimal price)
+    public static void AddProduct(string category, string name, decimal price)
     {
         using var connection = new SQLiteConnection(ConnectionString);
         connection.Open();
 
         using var command = new SQLiteCommand(
-            "INSERT INTO products (name, price) VALUES (@name, @price);",
+            "INSERT INTO products (category, name, price) VALUES (@category, @name, @price);",
             connection);
 
+        command.Parameters.AddWithValue("@category", category.Trim());
         command.Parameters.AddWithValue("@name", name.Trim());
         command.Parameters.AddWithValue("@price", (double)price);
         command.ExecuteNonQuery();
+    }
+
+    public static List<string> GetProductCategories()
+    {
+        var categories = new List<string>();
+
+        using var connection = new SQLiteConnection(ConnectionString);
+        connection.Open();
+
+        using var command = new SQLiteCommand(
+            @"SELECT DISTINCT category
+              FROM products
+              WHERE category IS NOT NULL AND TRIM(category) <> ''
+              ORDER BY category;",
+            connection);
+
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            categories.Add(Convert.ToString(reader["category"]) ?? string.Empty);
+        }
+
+        return categories;
     }
 
     public static List<ProductInfo> GetProducts()
@@ -136,7 +194,7 @@ CREATE TABLE IF NOT EXISTS orders (
         connection.Open();
 
         using var command = new SQLiteCommand(
-            "SELECT id, name, price FROM products ORDER BY name;",
+            "SELECT id, category, name, price FROM products ORDER BY category, name;",
             connection);
 
         using var reader = command.ExecuteReader();
@@ -145,6 +203,7 @@ CREATE TABLE IF NOT EXISTS orders (
             products.Add(new ProductInfo
             {
                 Id = Convert.ToInt32(reader["id"]),
+                Category = Convert.ToString(reader["category"]) ?? "Genel",
                 Name = Convert.ToString(reader["name"]) ?? string.Empty,
                 Price = Convert.ToDecimal(reader["price"])
             });
@@ -216,6 +275,23 @@ CREATE TABLE IF NOT EXISTS orders (
             : Convert.ToDecimal(result);
     }
 
+    public static int GetOrderCountForTable(int tableId)
+    {
+        using var connection = new SQLiteConnection(ConnectionString);
+        connection.Open();
+
+        using var command = new SQLiteCommand(
+            "SELECT COUNT(1) FROM orders WHERE table_id = @table_id;",
+            connection);
+
+        command.Parameters.AddWithValue("@table_id", tableId);
+
+        var result = command.ExecuteScalar();
+        return result == null || result == DBNull.Value
+            ? 0
+            : Convert.ToInt32(result);
+    }
+
     public static void ClearOrdersForTable(int tableId)
     {
         using var connection = new SQLiteConnection(ConnectionString);
@@ -262,12 +338,13 @@ internal sealed class TableInfo
 internal sealed class ProductInfo
 {
     public int Id { get; set; }
+    public string Category { get; set; } = "Genel";
     public string Name { get; set; } = string.Empty;
     public decimal Price { get; set; }
 
     public override string ToString()
     {
-        return $"{Name} - {Price:0.00} TL";
+        return $"[{Category}] {Name} - {Price:0.00} TL";
     }
 }
 
