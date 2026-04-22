@@ -19,7 +19,7 @@ public sealed class Form1 : Form
     private readonly Button _openProductPageButton = new();
     private readonly Button _checkoutButton = new();
 
-    private readonly Timer _uiTimer = new();
+    private readonly System.Windows.Forms.Timer _uiTimer = new();
 
     private int _selectedTableId;
 
