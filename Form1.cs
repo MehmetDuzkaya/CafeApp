@@ -123,7 +123,7 @@ public sealed class Form1 : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 8,
+            RowCount = 7,
             Padding = new Padding(12),
             BackColor = Color.Gainsboro
         };
@@ -134,8 +134,7 @@ public sealed class Form1 : Form
         panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 35f));
         panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 72f));
 
         var productsTitle = new Label
         {
@@ -154,13 +153,13 @@ public sealed class Form1 : Form
         _productsPanel.BackColor = Color.White;
 
         _openProductPageButton.Text = "Open Add Product Page";
-        _openProductPageButton.AutoSize = true;
-        _openProductPageButton.Dock = DockStyle.Top;
+        _openProductPageButton.AutoSize = false;
+        _openProductPageButton.Dock = DockStyle.Fill;
         _openProductPageButton.BackColor = Color.FromArgb(60, 120, 200);
         _openProductPageButton.ForeColor = Color.White;
         _openProductPageButton.FlatStyle = FlatStyle.Flat;
         _openProductPageButton.Font = new Font("Segoe UI", 9, FontStyle.Bold);
-        _openProductPageButton.Margin = new Padding(0, 8, 0, 0);
+        _openProductPageButton.Margin = new Padding(0, 0, 6, 0);
         _openProductPageButton.FlatAppearance.BorderSize = 0;
         _openProductPageButton.Click += OpenProductPageButtonOnClick;
 
@@ -174,13 +173,13 @@ public sealed class Form1 : Form
         _ordersListBox.IntegralHeight = false;
 
         _removeOrderItemButton.Text = "Secili Urunu Siparisten Sil";
-        _removeOrderItemButton.AutoSize = true;
-        _removeOrderItemButton.Dock = DockStyle.Top;
+        _removeOrderItemButton.AutoSize = false;
+        _removeOrderItemButton.Dock = DockStyle.Fill;
         _removeOrderItemButton.BackColor = Color.FromArgb(150, 63, 63);
         _removeOrderItemButton.ForeColor = Color.White;
         _removeOrderItemButton.FlatStyle = FlatStyle.Flat;
         _removeOrderItemButton.Font = new Font("Segoe UI", 9, FontStyle.Bold);
-        _removeOrderItemButton.Margin = new Padding(0, 8, 0, 0);
+        _removeOrderItemButton.Margin = new Padding(6, 0, 0, 0);
         _removeOrderItemButton.FlatAppearance.BorderSize = 0;
         _removeOrderItemButton.Click += RemoveOrderItemButtonOnClick;
 
@@ -191,24 +190,39 @@ public sealed class Form1 : Form
         _totalPriceLabel.Text = "Total: 0.00 TL";
 
         _checkoutButton.Text = "Hesap Al";
-        _checkoutButton.AutoSize = true;
-        _checkoutButton.Dock = DockStyle.Top;
+        _checkoutButton.AutoSize = false;
+        _checkoutButton.Dock = DockStyle.Fill;
         _checkoutButton.BackColor = Color.FromArgb(189, 92, 37);
         _checkoutButton.ForeColor = Color.White;
         _checkoutButton.FlatStyle = FlatStyle.Flat;
-        _checkoutButton.Font = new Font("Segoe UI", 10, FontStyle.Bold);
-        _checkoutButton.Margin = new Padding(0, 8, 0, 0);
+        _checkoutButton.Font = new Font("Segoe UI", 14, FontStyle.Bold);
+        _checkoutButton.Margin = new Padding(0, 12, 0, 0);
         _checkoutButton.FlatAppearance.BorderSize = 0;
         _checkoutButton.Click += CheckoutButtonOnClick;
 
+        var actionButtonsPanel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            ColumnCount = 2,
+            RowCount = 1,
+            Height = 42,
+            Margin = new Padding(0, 8, 0, 0)
+        };
+
+        actionButtonsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+        actionButtonsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+        actionButtonsPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 42f));
+
+        actionButtonsPanel.Controls.Add(_openProductPageButton, 0, 0);
+        actionButtonsPanel.Controls.Add(_removeOrderItemButton, 1, 0);
+
         panel.Controls.Add(productsTitle, 0, 0);
         panel.Controls.Add(_productsPanel, 0, 1);
-        panel.Controls.Add(_openProductPageButton, 0, 2);
+        panel.Controls.Add(actionButtonsPanel, 0, 2);
         panel.Controls.Add(_selectedTableLabel, 0, 3);
         panel.Controls.Add(_ordersListBox, 0, 4);
-        panel.Controls.Add(_removeOrderItemButton, 0, 5);
-        panel.Controls.Add(_totalPriceLabel, 0, 6);
-        panel.Controls.Add(_checkoutButton, 0, 7);
+        panel.Controls.Add(_totalPriceLabel, 0, 5);
+        panel.Controls.Add(_checkoutButton, 0, 6);
 
         return panel;
     }
