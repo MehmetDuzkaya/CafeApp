@@ -1,0 +1,32 @@
+name: Build Windows EXE
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        run: dotnet restore CafeApp.sln
+
+      - name: Publish
+        run: dotnet publish CafeApp.csproj -c Release -r win-x64 -o publish/win-x64 --self-contained true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CafeApp-win-x64
+          path: publish/win-x64/
