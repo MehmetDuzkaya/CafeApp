@@ -12,22 +12,24 @@ public sealed class AddProductForm : Form
     private readonly TextBox _nameTextBox = new();
     private readonly TextBox _priceTextBox = new();
     private readonly ListBox _productsListBox = new();
+    private readonly Button _addCategoryButton = new();
+    private readonly Button _removeCategoryButton = new();
 
     private bool _hasChanges;
 
     public bool HasChanges => _hasChanges;
 
-    public AddProductForm(List<string> existingCategories)
+    public AddProductForm()
     {
         ConfigureForm();
         BuildLayout();
-        LoadCategories(existingCategories);
+        LoadCategories();
         LoadProducts();
     }
 
     private void ConfigureForm()
     {
-        Text = "Product Management";
+        Text = "Urun Yonetimi";
         StartPosition = FormStartPosition.CenterParent;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
@@ -62,7 +64,7 @@ public sealed class AddProductForm : Form
 
         var listTitle = new Label
         {
-            Text = "Product List (select to edit/delete)",
+            Text = "Urun Listesi (duzenle/sil icin secin)",
             AutoSize = true,
             Dock = DockStyle.Top,
             Font = new Font("Segoe UI", 10, FontStyle.Bold),
@@ -80,7 +82,7 @@ public sealed class AddProductForm : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 2,
-            RowCount = 5,
+            RowCount = 6,
             Margin = new Padding(8, 0, 0, 0)
         };
         rightPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 95f));
@@ -89,11 +91,12 @@ public sealed class AddProductForm : Form
         rightPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         rightPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         rightPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        rightPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         rightPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
         var formTitle = new Label
         {
-            Text = "Add / Update Product",
+            Text = "Urun Ekle / Guncelle",
             AutoSize = true,
             Dock = DockStyle.Top,
             Font = new Font("Segoe UI", 10, FontStyle.Bold),
@@ -103,7 +106,7 @@ public sealed class AddProductForm : Form
 
         var categoryLabel = new Label
         {
-            Text = "Category:",
+            Text = "Kategori:",
             AutoSize = true,
             Anchor = AnchorStyles.Left,
             Font = new Font("Segoe UI", 9, FontStyle.Regular)
@@ -115,7 +118,7 @@ public sealed class AddProductForm : Form
 
         var nameLabel = new Label
         {
-            Text = "Name:",
+            Text = "Ad:",
             AutoSize = true,
             Anchor = AnchorStyles.Left,
             Font = new Font("Segoe UI", 9, FontStyle.Regular)
@@ -126,7 +129,7 @@ public sealed class AddProductForm : Form
 
         var priceLabel = new Label
         {
-            Text = "Price:",
+            Text = "Fiyat:",
             AutoSize = true,
             Anchor = AnchorStyles.Left,
             Font = new Font("Segoe UI", 9, FontStyle.Regular)
@@ -202,11 +205,42 @@ public sealed class AddProductForm : Form
 
         rightPanel.Controls.Add(categoryLabel, 0, 1);
         rightPanel.Controls.Add(_categoryComboBox, 1, 1);
-        rightPanel.Controls.Add(nameLabel, 0, 2);
-        rightPanel.Controls.Add(_nameTextBox, 1, 2);
-        rightPanel.Controls.Add(priceLabel, 0, 3);
-        rightPanel.Controls.Add(_priceTextBox, 1, 3);
-        rightPanel.Controls.Add(buttonsPanel, 1, 4);
+        var categoryActionsPanel = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = true,
+            Padding = new Padding(0, 4, 0, 0)
+        };
+
+        _addCategoryButton.Text = "Kategori Ekle";
+        _addCategoryButton.AutoSize = true;
+        _addCategoryButton.BackColor = Color.FromArgb(32, 153, 95);
+        _addCategoryButton.ForeColor = Color.White;
+        _addCategoryButton.FlatStyle = FlatStyle.Flat;
+        _addCategoryButton.Font = new Font("Segoe UI", 9, FontStyle.Bold);
+        _addCategoryButton.Margin = new Padding(0, 0, 8, 0);
+        _addCategoryButton.FlatAppearance.BorderSize = 0;
+        _addCategoryButton.Click += AddCategoryButtonOnClick;
+
+        _removeCategoryButton.Text = "Kategori Sil";
+        _removeCategoryButton.AutoSize = true;
+        _removeCategoryButton.BackColor = Color.FromArgb(193, 62, 62);
+        _removeCategoryButton.ForeColor = Color.White;
+        _removeCategoryButton.FlatStyle = FlatStyle.Flat;
+        _removeCategoryButton.Font = new Font("Segoe UI", 9, FontStyle.Bold);
+        _removeCategoryButton.FlatAppearance.BorderSize = 0;
+        _removeCategoryButton.Click += RemoveCategoryButtonOnClick;
+
+        categoryActionsPanel.Controls.Add(_addCategoryButton);
+        categoryActionsPanel.Controls.Add(_removeCategoryButton);
+
+        rightPanel.Controls.Add(nameLabel, 0, 3);
+        rightPanel.Controls.Add(_nameTextBox, 1, 3);
+        rightPanel.Controls.Add(priceLabel, 0, 4);
+        rightPanel.Controls.Add(_priceTextBox, 1, 4);
+        rightPanel.Controls.Add(buttonsPanel, 1, 5);
+        rightPanel.Controls.Add(categoryActionsPanel, 1, 2);
 
         mainLayout.Controls.Add(leftPanel, 0, 0);
         mainLayout.Controls.Add(rightPanel, 1, 0);
@@ -217,26 +251,19 @@ public sealed class AddProductForm : Form
         CancelButton = cancelButton;
     }
 
-    private void LoadCategories(List<string> existingCategories)
+    private void LoadCategories()
     {
-        var defaults = new[]
-        {
-            "Kahve",
-            "Cay",
-            "Soguk Icecek",
-            "Tatli",
-            "Yiyecek",
-            "Genel"
-        };
+        _categoryComboBox.Items.Clear();
 
-        foreach (var category in defaults)
+        var categories = DatabaseHelper.GetCategories();
+        foreach (var category in categories)
         {
             AddCategoryIfMissing(category);
         }
 
-        foreach (var category in existingCategories)
+        if (_categoryComboBox.Items.Count == 0)
         {
-            AddCategoryIfMissing(category);
+            AddCategoryIfMissing("Genel");
         }
 
         if (_categoryComboBox.Items.Count > 0)
@@ -271,6 +298,83 @@ public sealed class AddProductForm : Form
         _categoryComboBox.Items.Add(normalized);
     }
 
+    private void ReloadCategories(string? preferredSelection = null)
+    {
+        var selection = preferredSelection ?? _categoryComboBox.Text;
+        _categoryComboBox.Items.Clear();
+
+        var categories = DatabaseHelper.GetCategories();
+        foreach (var category in categories)
+        {
+            AddCategoryIfMissing(category);
+        }
+
+        if (_categoryComboBox.Items.Count == 0)
+        {
+            AddCategoryIfMissing("Genel");
+        }
+
+        if (!string.IsNullOrWhiteSpace(selection))
+        {
+            _categoryComboBox.Text = selection;
+        }
+        else if (_categoryComboBox.Items.Count > 0)
+        {
+            _categoryComboBox.SelectedIndex = 0;
+        }
+    }
+
+    private void AddCategoryButtonOnClick(object? sender, EventArgs e)
+    {
+        var categoryName = ShowTextInputDialog("Kategori Ekle", "Yeni kategori adi:", string.Empty);
+        if (string.IsNullOrWhiteSpace(categoryName))
+        {
+            return;
+        }
+
+        DatabaseHelper.AddCategory(categoryName);
+        ReloadCategories(categoryName);
+        _hasChanges = true;
+    }
+
+    private void RemoveCategoryButtonOnClick(object? sender, EventArgs e)
+    {
+        var selectedCategory = _categoryComboBox.Text.Trim();
+        if (string.IsNullOrWhiteSpace(selectedCategory))
+        {
+            MessageBox.Show("Silinecek kategori secin.", "Bilgi", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        if (string.Equals(selectedCategory, "Genel", StringComparison.OrdinalIgnoreCase))
+        {
+            MessageBox.Show("'Genel' kategorisi silinemez.", "Bilgi", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        var productCount = DatabaseHelper.GetProductCountForCategory(selectedCategory);
+        if (productCount > 0)
+        {
+            var reassign = MessageBox.Show(
+                $"Bu kategoriye ait {productCount} urun var. Bu urunler 'Genel' kategorisine tasinsin mi?",
+                "Kategori Sil",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (reassign != DialogResult.Yes)
+            {
+                return;
+            }
+
+            DatabaseHelper.ReassignProductsToCategory(selectedCategory, "Genel");
+        }
+
+        DatabaseHelper.DeleteCategory(selectedCategory);
+        ReloadCategories("Genel");
+        LoadProducts();
+        _hasChanges = true;
+    }
+
     private void ProductsListBoxOnSelectedIndexChanged(object? sender, EventArgs e)
     {
         if (_productsListBox.SelectedItem is not ProductInfo selectedProduct)
@@ -293,19 +397,19 @@ public sealed class AddProductForm : Form
 
         if (string.IsNullOrWhiteSpace(category))
         {
-            MessageBox.Show("Please enter a category.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show("Kategori girin.", "Dogrulama", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return false;
         }
 
         if (string.IsNullOrWhiteSpace(name))
         {
-            MessageBox.Show("Please enter a product name.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show("Urun adi girin.", "Dogrulama", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return false;
         }
 
         if (!TryParsePrice(priceText, out var parsedPrice) || parsedPrice <= 0)
         {
-            MessageBox.Show("Please enter a valid price.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show("Gecerli bir fiyat girin.", "Dogrulama", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return false;
         }
 
@@ -333,7 +437,7 @@ public sealed class AddProductForm : Form
     {
         if (_productsListBox.SelectedItem is not ProductInfo selectedProduct)
         {
-            MessageBox.Show("Please select a product from the list.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show("Listeden bir urun secin.", "Bilgi", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
 
@@ -352,13 +456,13 @@ public sealed class AddProductForm : Form
     {
         if (_productsListBox.SelectedItem is not ProductInfo selectedProduct)
         {
-            MessageBox.Show("Please select a product from the list.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show("Listeden bir urun secin.", "Bilgi", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
 
         var result = MessageBox.Show(
-            $"Delete product '{selectedProduct.Name}'?",
-            "Confirm",
+            $"Urun silinsin mi: '{selectedProduct.Name}'?",
+            "Onay",
             MessageBoxButtons.YesNo,
             MessageBoxIcon.Question);
 
@@ -386,5 +490,63 @@ public sealed class AddProductForm : Form
         }
 
         return decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out price);
+    }
+
+    private static string? ShowTextInputDialog(string title, string prompt, string defaultValue)
+    {
+        using var dialog = new Form
+        {
+            Text = title,
+            StartPosition = FormStartPosition.CenterParent,
+            Width = 420,
+            Height = 160,
+            FormBorderStyle = FormBorderStyle.FixedDialog,
+            MaximizeBox = false,
+            MinimizeBox = false
+        };
+
+        var promptLabel = new Label
+        {
+            Text = prompt,
+            AutoSize = true,
+            Left = 12,
+            Top = 12
+        };
+
+        var inputBox = new TextBox
+        {
+            Left = 12,
+            Top = 36,
+            Width = 380,
+            Text = defaultValue
+        };
+
+        var okButton = new Button
+        {
+            Text = "Tamam",
+            DialogResult = DialogResult.OK,
+            Left = 232,
+            Width = 75,
+            Top = 72
+        };
+
+        var cancelButton = new Button
+        {
+            Text = "Iptal",
+            DialogResult = DialogResult.Cancel,
+            Left = 317,
+            Width = 75,
+            Top = 72
+        };
+
+        dialog.Controls.Add(promptLabel);
+        dialog.Controls.Add(inputBox);
+        dialog.Controls.Add(okButton);
+        dialog.Controls.Add(cancelButton);
+        dialog.AcceptButton = okButton;
+        dialog.CancelButton = cancelButton;
+
+        var result = dialog.ShowDialog();
+        return result == DialogResult.OK ? inputBox.Text.Trim() : null;
     }
 }

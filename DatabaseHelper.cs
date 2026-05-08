@@ -10,6 +10,18 @@ internal static class DatabaseHelper
 {
     private static readonly string DbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "cafe.db");
     private static readonly string ConnectionString = $"Data Source={DbPath};Version=3;";
+    private static readonly string[] DefaultCategories =
+    {
+        "Icecekler",
+        "Baklava",
+        "Tatli",
+        "Soguk Tatli",
+        "Dondurma",
+        "Kurabiye",
+        "Borek",
+        "Yiyecek",
+        "Genel"
+    };
 
     public static void InitializeDatabase()
     {
@@ -50,21 +62,63 @@ CREATE TABLE IF NOT EXISTS orders (
 
         EnsureProductCategoryColumn(connection);
         EnsureCafeTables(connection);
+        NormalizeProductCategories(connection);
+        EnsureCategoriesTable(connection);
+        RemoveLegacyCategories(connection);
+        NormalizeTableNames(connection);
     }
 
     private static void EnsureCafeTables(SQLiteConnection connection)
     {
+        using var countCommand = new SQLiteCommand("SELECT COUNT(1) FROM cafe_tables;", connection);
+        var existingCount = Convert.ToInt32(countCommand.ExecuteScalar());
+        if (existingCount > 0)
+        {
+            return;
+        }
+
         for (var i = 1; i <= 10; i++)
         {
             using var command = new SQLiteCommand(
-                @"INSERT OR IGNORE INTO cafe_tables (id, name, is_occupied, start_time)
+                @"INSERT INTO cafe_tables (id, name, is_occupied, start_time)
                   VALUES (@id, @name, 0, NULL);",
                 connection);
 
             command.Parameters.AddWithValue("@id", i);
-            command.Parameters.AddWithValue("@name", $"Table {i}");
+            command.Parameters.AddWithValue("@name", $"Masa {i}");
             command.ExecuteNonQuery();
         }
+    }
+
+    private static void EnsureCategoriesTable(SQLiteConnection connection)
+    {
+        using (var command = new SQLiteCommand(
+                   @"CREATE TABLE IF NOT EXISTS categories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE
+);",
+                   connection))
+        {
+            command.ExecuteNonQuery();
+        }
+
+        foreach (var category in DefaultCategories)
+        {
+            using var insertCommand = new SQLiteCommand(
+                "INSERT OR IGNORE INTO categories (name) VALUES (@name);",
+                connection);
+
+            insertCommand.Parameters.AddWithValue("@name", category);
+            insertCommand.ExecuteNonQuery();
+        }
+
+        using var copyCommand = new SQLiteCommand(
+            @"INSERT OR IGNORE INTO categories (name)
+              SELECT DISTINCT TRIM(category)
+              FROM products
+              WHERE category IS NOT NULL AND TRIM(category) <> '';",
+            connection);
+        copyCommand.ExecuteNonQuery();
     }
 
     private static void EnsureProductCategoryColumn(SQLiteConnection connection)
@@ -97,6 +151,64 @@ CREATE TABLE IF NOT EXISTS orders (
             "UPDATE products SET category = 'Genel' WHERE category IS NULL OR TRIM(category) = '';",
             connection);
         fillCommand.ExecuteNonQuery();
+    }
+
+    private static void NormalizeProductCategories(SQLiteConnection connection)
+    {
+        using (var trimCommand = new SQLiteCommand(
+                   "UPDATE products SET category = TRIM(category) WHERE category IS NOT NULL;",
+                   connection))
+        {
+            trimCommand.ExecuteNonQuery();
+        }
+
+        using (var updateCommand = new SQLiteCommand(
+                   @"UPDATE products
+                     SET category = 'Icecekler'
+                     WHERE LOWER(TRIM(category)) IN (
+                         'kahve',
+                         'cay',
+                         'soguk icecek',
+                         'soguk icecekler',
+                         'icecek',
+                         'icecekler'
+                     );",
+                   connection))
+        {
+            updateCommand.ExecuteNonQuery();
+        }
+    }
+
+    private static void NormalizeTableNames(SQLiteConnection connection)
+    {
+        using (var emptyNameCommand = new SQLiteCommand(
+                   "UPDATE cafe_tables SET name = 'Masa ' || id WHERE name IS NULL OR TRIM(name) = '';",
+                   connection))
+        {
+            emptyNameCommand.ExecuteNonQuery();
+        }
+
+        using (var defaultNameCommand = new SQLiteCommand(
+                   "UPDATE cafe_tables SET name = 'Masa ' || id WHERE LOWER(TRIM(name)) = 'table ' || id;",
+                   connection))
+        {
+            defaultNameCommand.ExecuteNonQuery();
+        }
+    }
+
+    private static void RemoveLegacyCategories(SQLiteConnection connection)
+    {
+        using var command = new SQLiteCommand(
+            @"DELETE FROM categories
+              WHERE LOWER(TRIM(name)) IN (
+                  'kahve',
+                  'cay',
+                  'soguk icecek',
+                  'soguk icecekler',
+                  'icecek'
+              );",
+            connection);
+        command.ExecuteNonQuery();
     }
 
     public static List<TableInfo> GetTables()
@@ -153,6 +265,8 @@ CREATE TABLE IF NOT EXISTS orders (
         using var connection = new SQLiteConnection(ConnectionString);
         connection.Open();
 
+        EnsureCategoryExists(connection, category);
+
         using var command = new SQLiteCommand(
             "INSERT INTO products (category, name, price) VALUES (@category, @name, @price);",
             connection);
@@ -167,6 +281,8 @@ CREATE TABLE IF NOT EXISTS orders (
     {
         using var connection = new SQLiteConnection(ConnectionString);
         connection.Open();
+
+        EnsureCategoryExists(connection, category);
 
         using var command = new SQLiteCommand(
             @"UPDATE products
@@ -219,6 +335,82 @@ CREATE TABLE IF NOT EXISTS orders (
         return categories;
     }
 
+    public static List<string> GetCategories()
+    {
+        var categories = new List<string>();
+
+        using var connection = new SQLiteConnection(ConnectionString);
+        connection.Open();
+
+        using var command = new SQLiteCommand(
+            @"SELECT name
+              FROM categories
+              WHERE name IS NOT NULL AND TRIM(name) <> ''
+              ORDER BY name;",
+            connection);
+
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            categories.Add(Convert.ToString(reader["name"]) ?? string.Empty);
+        }
+
+        return categories;
+    }
+
+    public static void AddCategory(string category)
+    {
+        using var connection = new SQLiteConnection(ConnectionString);
+        connection.Open();
+
+        EnsureCategoryExists(connection, category);
+    }
+
+    public static int GetProductCountForCategory(string category)
+    {
+        using var connection = new SQLiteConnection(ConnectionString);
+        connection.Open();
+
+        using var command = new SQLiteCommand(
+            "SELECT COUNT(1) FROM products WHERE LOWER(TRIM(category)) = LOWER(TRIM(@category));",
+            connection);
+        command.Parameters.AddWithValue("@category", category.Trim());
+
+        var result = command.ExecuteScalar();
+        return result == null || result == DBNull.Value
+            ? 0
+            : Convert.ToInt32(result);
+    }
+
+    public static void ReassignProductsToCategory(string fromCategory, string toCategory)
+    {
+        using var connection = new SQLiteConnection(ConnectionString);
+        connection.Open();
+
+        EnsureCategoryExists(connection, toCategory);
+
+        using var command = new SQLiteCommand(
+            @"UPDATE products
+              SET category = @toCategory
+              WHERE LOWER(TRIM(category)) = LOWER(TRIM(@fromCategory));",
+            connection);
+        command.Parameters.AddWithValue("@fromCategory", fromCategory.Trim());
+        command.Parameters.AddWithValue("@toCategory", toCategory.Trim());
+        command.ExecuteNonQuery();
+    }
+
+    public static void DeleteCategory(string category)
+    {
+        using var connection = new SQLiteConnection(ConnectionString);
+        connection.Open();
+
+        using var command = new SQLiteCommand(
+            "DELETE FROM categories WHERE LOWER(TRIM(name)) = LOWER(TRIM(@name));",
+            connection);
+        command.Parameters.AddWithValue("@name", category.Trim());
+        command.ExecuteNonQuery();
+    }
+
     public static List<ProductInfo> GetProducts()
     {
         var products = new List<ProductInfo>();
@@ -243,6 +435,65 @@ CREATE TABLE IF NOT EXISTS orders (
         }
 
         return products;
+    }
+
+    public static TableInfo AddTable(string? name = null)
+    {
+        using var connection = new SQLiteConnection(ConnectionString);
+        connection.Open();
+
+        using var idCommand = new SQLiteCommand("SELECT IFNULL(MAX(id), 0) + 1 FROM cafe_tables;", connection);
+        var nextId = Convert.ToInt32(idCommand.ExecuteScalar());
+        var tableName = string.IsNullOrWhiteSpace(name) ? $"Masa {nextId}" : name.Trim();
+
+        using var insertCommand = new SQLiteCommand(
+            @"INSERT INTO cafe_tables (id, name, is_occupied, start_time)
+              VALUES (@id, @name, 0, NULL);",
+            connection);
+        insertCommand.Parameters.AddWithValue("@id", nextId);
+        insertCommand.Parameters.AddWithValue("@name", tableName);
+        insertCommand.ExecuteNonQuery();
+
+        return new TableInfo
+        {
+            Id = nextId,
+            Name = tableName,
+            IsOccupied = false,
+            StartTime = null
+        };
+    }
+
+    public static void DeleteTable(int tableId)
+    {
+        using var connection = new SQLiteConnection(ConnectionString);
+        connection.Open();
+
+        using (var ordersCommand = new SQLiteCommand(
+                   "DELETE FROM orders WHERE table_id = @table_id;",
+                   connection))
+        {
+            ordersCommand.Parameters.AddWithValue("@table_id", tableId);
+            ordersCommand.ExecuteNonQuery();
+        }
+
+        using var command = new SQLiteCommand(
+            "DELETE FROM cafe_tables WHERE id = @id;",
+            connection);
+        command.Parameters.AddWithValue("@id", tableId);
+        command.ExecuteNonQuery();
+    }
+
+    public static void UpdateTableName(int tableId, string name)
+    {
+        using var connection = new SQLiteConnection(ConnectionString);
+        connection.Open();
+
+        using var command = new SQLiteCommand(
+            "UPDATE cafe_tables SET name = @name WHERE id = @id;",
+            connection);
+        command.Parameters.AddWithValue("@id", tableId);
+        command.Parameters.AddWithValue("@name", name.Trim());
+        command.ExecuteNonQuery();
     }
 
     public static void AddOrder(int tableId, string productName, decimal price)
@@ -370,6 +621,33 @@ CREATE TABLE IF NOT EXISTS orders (
         }
 
         return null;
+    }
+
+    private static void EnsureCategoryExists(SQLiteConnection connection, string category)
+    {
+        var normalized = category.Trim();
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return;
+        }
+
+        using (var existsCommand = new SQLiteCommand(
+                   "SELECT 1 FROM categories WHERE LOWER(TRIM(name)) = LOWER(TRIM(@name)) LIMIT 1;",
+                   connection))
+        {
+            existsCommand.Parameters.AddWithValue("@name", normalized);
+            var exists = existsCommand.ExecuteScalar();
+            if (exists != null)
+            {
+                return;
+            }
+        }
+
+        using var command = new SQLiteCommand(
+            "INSERT INTO categories (name) VALUES (@name);",
+            connection);
+        command.Parameters.AddWithValue("@name", normalized);
+        command.ExecuteNonQuery();
     }
 }
 
